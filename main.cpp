@@ -1,82 +1,84 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+
 using namespace std;
 
-void gauss(vector<vector<double>>& a, vector<double>& b, int n, vector<double>& x) {
-    for (int k = 0; k < n; k++) {
-        for (int i = k + 1; i < n; i++) {//свап строк
-            if (abs(a[i][k]) > abs(a[k][k])) {
-                swap(a[i], a[k]);
-                swap(b[i], b[k]);
-            }
-        }
-        //выбор ведущего элемента
-        double A_Main = a[k][k];
-        if (A_Main == 0) {
-            cout << "Ошибка" << endl;
-            return;
-        }
-        //делим на ведущий элемент строку
-        for (int i = k; i < n; i++) {
-            a[k][i] /= A_Main;
-        }
-        b[k] /= A_Main;
-        //исключение переменной
-        for (int i = k + 1; i < n; i++) {
-            double s = a[i][k];
-            for (int j = k; j < n; j++) {
-                a[i][j] -= s * a[k][j];
-            }
-            b[i] -= s * b[k];
-        }
-    }
-    //обратный ход
-    for (int k = n - 1; k >= 0; k--) {
-        x[k] = b[k];
-        for (int i = n - 1; i > k; i--) {
-            x[k] -= a[k][i] * x[i];
-        }
-    }
+// Функции, представляющие систему уравнений
+double f1(double x1, double x2) {
+    return cos(0.4 * x2 + x1 * x1) + x2 * x2 + x1 * x1 - 1.6;
 }
 
-
-vector<double> vectornev(vector<vector<double>>& a, vector<double>& b, vector<double>& x, int n) {
-    vector<double> f(n);
-    for (int i = 0; i < n; i++) {
-        f[i] = -b[i];
-        for (int j = 0; j < n; j++) {
-            f[i] += a[i][j] * x[j];
-        }
-    }
-    return f;
+double f2(double x1, double x2) {
+    return 1.5 * x1 * x1 - x2 * x2 / 0.36 - 1;
 }
 
+// Производные функций по аргументам
+double df1_dx1(double x1, double x2) {
+    return -2 * x1 * sin(0.4 * x2 + x1 * x1) + 3 * x1;
+}
 
-double Norma(vector<double>& f, int n) {
-    double norma = abs(f[0]);
-    for (int i = 0; i < n; i++) {
-        norma = max(f[i], norma);
-    }
-    return norma;
+double df1_dx2(double x1, double x2) {
+    return -0.4 * sin(0.4 * x2 + x1 * x1) + 2 * x2;
+}
+
+double df2_dx1(double x1, double x2) {
+    return 3 * x1;
+}
+
+double df2_dx2(double x1, double x2) {
+    return -2 * x2 / 0.36;
 }
 
 int main() {
-    int n = 3;
-    vector<vector<double>> a = {{2.75, 1.78, 1.11}, {3.28, 0.71, 1.15}, {1.15, 2.7, 3.58}};
-    vector<double> b = {15.71, 43.78, 37.11};
-    vector<double> x(n);
-    gauss(a, b, n, x);
+    double x1 = 1.0; // Начальное приближение для x1
+    double x2 = -1.0; // Начальное приближение для x2
+    const double e1 = 1e-9;
+    const double e2 = 1e-9;
+    const int NIT = 100;
+    int k = 1;
 
-    for (int i = 0; i < n; i++) {
-        cout << x[i] << " ";
+    while (k <= NIT) {
+        double F1 = f1(x1, x2);
+        double F2 = f2(x1, x2);
+
+        double J11 = df1_dx1(x1, x2);
+        double J12 = df1_dx2(x1, x2);
+        double J21 = df2_dx1(x1, x2);
+        double J22 = df2_dx2(x1, x2);
+
+        // Решение системы линейных уравнений
+        double det = J11 * J22 - J12 * J21;
+        double dx1 = (J22 * F1 - J12 * F2) / det;
+        double dx2 = (-J21 * F1 + J11 * F2) / det;
+
+        // Уточнение решения
+        x1 -= dx1;
+        x2 -= dx2;
+
+        // Вычисление b1 и b2
+        double b1 = max(abs(F1), abs(F2));
+        double b2 = max(abs(dx1), abs(dx2));
+        b2 = max(b2, abs(dx1 / x1));
+        b2 = max(b2, abs(dx2 / x2));
+
+        // Вывод текущих значений
+        cout << "Iteration " << k << ": x1 = " << x1 << ", x2 = " << x2 << ", b1 = " << b1 << ", b2 = " << b2 << endl;
+
+        // Проверка критерия завершения
+        if (b1 <= e1 && b2 <= e2) {
+            cout << "Converged to the desired precision." << endl;
+            break;
+        }
+
+        // Проверка условия k >= NIT
+        if (k >= NIT) {
+            cout << "Iteration limit reached. IER = 2" << endl;
+            break;
+        }
+
+        k++;
     }
-    cout << endl;
-
-    vector<double> f = vectornev(a, b, x, n);
-
-    cout << "Норма: " << Norma(f, n) << endl;
 
     return 0;
 }
-
